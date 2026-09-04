@@ -8,13 +8,13 @@
     <style>
         body {
             font-family: system-ui, -apple-system, sans-serif;
-            max-width: 600px;
+            max-width: 640px;
             margin: 50px auto;
             padding: 20px;
             text-align: center;
         }
 
-        input {
+        input[type="text"] {
             width: 70%;
             padding: 12px;
             font-size: 16px;
@@ -36,6 +36,36 @@
         button:hover {
             background: #2c974b;
         }
+
+        .search-types {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            margin: 16px 0 20px;
+        }
+
+        .search-types label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border: 1px solid #d0d7de;
+            border-radius: 999px;
+            cursor: pointer;
+            font-size: 14px;
+            user-select: none;
+        }
+
+        .search-types label:has(input:checked),
+        .search-types label:has(input:indeterminate) {
+            background: #ddf4ff;
+            border-color: #54aeff;
+        }
+
+        .search-types input {
+            margin: 0;
+        }
     </style>
 </head>
 
@@ -46,18 +76,58 @@
     <form id="searchForm">
         <input type="text" id="searchTerm" placeholder="Enter search term..." required>
         <button type="submit">Search</button>
+        <div class="search-types" role="group" aria-label="Search types">
+            <label><input type="checkbox" id="selectAll" checked> All</label>
+            <label><input type="checkbox" name="searchType" value="code" checked> Code</label>
+            <label><input type="checkbox" name="searchType" value="repositories" checked> Repositories</label>
+            <label><input type="checkbox" name="searchType" value="issues" checked> Issues</label>
+            <label><input type="checkbox" name="searchType" value="pullrequests" checked> Pull requests</label>
+            <label><input type="checkbox" name="searchType" value="discussions" checked> Discussions</label>
+            <label><input type="checkbox" name="searchType" value="commits" checked> Commits</label>
+        </div>
     </form>
 
     <script>
+        const selectAll = document.getElementById('selectAll');
+        const typeBoxes = [...document.querySelectorAll('input[name="searchType"]')];
+
+        function syncSelectAll() {
+            const checkedCount = typeBoxes.filter((box) => box.checked).length;
+            selectAll.checked = checkedCount === typeBoxes.length;
+            selectAll.indeterminate = checkedCount > 0 && checkedCount < typeBoxes.length;
+        }
+
+        selectAll.addEventListener('change', function () {
+            typeBoxes.forEach((box) => {
+                box.checked = selectAll.checked;
+            });
+            selectAll.indeterminate = false;
+        });
+
+        typeBoxes.forEach((box) => {
+            box.addEventListener('change', syncSelectAll);
+        });
+
         document.getElementById('searchForm').addEventListener('submit', function (e) {
             e.preventDefault();
             const term = document.getElementById('searchTerm').value.trim();
             if (!term) return;
 
-            const encodedTerm = encodeURIComponent(term);
-            const url = `https://github.com/search?q=${encodedTerm}+user%3Akeri-foundation+user%3Atrustoverip+user%3Ablockchainbird&type=Repositories&ref=advsearch&l=&l=`;
+            const types = typeBoxes.filter((box) => box.checked).map((box) => box.value);
+            if (!types.length) return;
 
-            window.location.href = url;
+            const encodedTerm = encodeURIComponent(term);
+            const owners = encodeURIComponent('(user:keri-foundation OR user:trustoverip OR user:blockchainbird)');
+            const query = `https://github.com/search?q=${encodedTerm}+${owners}`;
+
+            if (types.length === typeBoxes.length) {
+                window.location.href = query;
+                return;
+            }
+
+            const urls = types.map((type) => `${query}&type=${type}`);
+            urls.slice(1).forEach((url) => window.open(url, '_blank'));
+            window.location.href = urls[0];
         });
     </script>
 </body>
