@@ -66,6 +66,15 @@
         .search-types input {
             margin: 0;
         }
+
+        #openedSearches {
+            margin-top: 24px;
+            text-align: left;
+        }
+
+        #openedSearches ul {
+            padding-left: 20px;
+        }
     </style>
 </head>
 
@@ -86,10 +95,37 @@
             <label><input type="checkbox" name="searchType" value="commits" checked> Commits</label>
         </div>
     </form>
+    <div id="openedSearches" hidden></div>
 
     <script>
+        const OWNERS = ['keri-foundation', 'trustoverip', 'blockchainbird'];
+        const TYPE_LABELS = {
+            code: 'Code',
+            repositories: 'Repositories',
+            issues: 'Issues',
+            pullrequests: 'Pull requests',
+            discussions: 'Discussions',
+            commits: 'Commits',
+        };
+
         const selectAll = document.getElementById('selectAll');
         const typeBoxes = [...document.querySelectorAll('input[name="searchType"]')];
+        const openedSearches = document.getElementById('openedSearches');
+
+        function ownersQuery(type) {
+            // Code search ANDs adjacent user: filters, so those need explicit OR.
+            // Issues search ignores that OR group and returns 0 hits; there,
+            // repeated user: filters are treated as OR.
+            if (type === 'code') {
+                return '(' + OWNERS.map((owner) => `user:${owner}`).join(' OR ') + ')';
+            }
+            return OWNERS.map((owner) => `user:${owner}`).join(' ');
+        }
+
+        function searchUrl(term, type) {
+            const query = `${term} ${ownersQuery(type)}`;
+            return `https://github.com/search?q=${encodeURIComponent(query)}&type=${type}`;
+        }
 
         function syncSelectAll() {
             const checkedCount = typeBoxes.filter((box) => box.checked).length;
@@ -116,18 +152,23 @@
             const types = typeBoxes.filter((box) => box.checked).map((box) => box.value);
             if (!types.length) return;
 
-            const encodedTerm = encodeURIComponent(term);
-            const owners = encodeURIComponent('(user:keri-foundation OR user:trustoverip OR user:blockchainbird)');
-            const query = `https://github.com/search?q=${encodedTerm}+${owners}`;
+            const searches = types.map((type) => ({
+                label: TYPE_LABELS[type],
+                url: searchUrl(term, type),
+            }));
 
-            if (types.length === typeBoxes.length) {
-                window.location.href = query;
+            if (searches.length === 1) {
+                window.location.href = searches[0].url;
                 return;
             }
 
-            const urls = types.map((type) => `${query}&type=${type}`);
-            urls.slice(1).forEach((url) => window.open(url, '_blank'));
-            window.location.href = urls[0];
+            openedSearches.hidden = false;
+            openedSearches.innerHTML =
+                '<p>GitHub can only show one type per page, and Issues needs a different query than Code. Use these searches:</p><ul>' +
+                searches.map((search) => `<li><a href="${search.url}" target="_blank" rel="noopener">${search.label}</a></li>`).join('') +
+                '</ul>';
+
+            searches.forEach((search) => window.open(search.url, '_blank'));
         });
     </script>
 </body>
