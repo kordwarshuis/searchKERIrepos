@@ -100,7 +100,7 @@
             <label><input type="checkbox" name="searchType" value="discussions" checked> Discussions</label>
             <label><input type="checkbox" name="searchType" value="commits" checked> Commits</label>
         </div>
-        <p class="tab-hint">Selecting more than one type (or All) opens a new browser tab for each type.</p>
+        <p class="tab-hint">Each selected type opens in a new browser tab.</p>
     </form>
     <div id="openedSearches" hidden></div>
 
@@ -164,14 +164,9 @@
                 url: searchUrl(term, type),
             }));
 
-            if (searches.length === 1) {
-                window.location.href = searches[0].url;
-                return;
-            }
-
             openedSearches.hidden = false;
             openedSearches.innerHTML =
-                '<p>GitHub can only show one type per page, and Issues needs a different query than Code. Use these searches:</p><ul>' +
+                '<p>Opened in new tabs. If a tab was blocked, use these links:</p><ul>' +
                 searches.map((search) => `<li><a href="${search.url}" target="_blank" rel="noopener">${search.label}</a></li>`).join('') +
                 '</ul>';
 
