@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Multi-User Search</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            text-align: center;
+        }
+
+        input {
+            width: 70%;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        button {
+            padding: 12px 20px;
+            font-size: 16px;
+            background: #2da44e;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+
+        button:hover {
+            background: #2c974b;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Search KERI-related GitHub Repositories</h1>
+    <p>Search in: keri-foundation, trustoverip, blockchainbird</p>
+
+    <form id="searchForm">
+        <input type="text" id="searchTerm" placeholder="Enter search term..." required>
+        <button type="submit">Search</button>
+    </form>
+
+    <script>
+        document.getElementById('searchForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const term = document.getElementById('searchTerm').value.trim();
+            if (!term) return;
+
+            const encodedTerm = encodeURIComponent(term);
+            const url = `https://github.com/search?q=${encodedTerm}+user%3Akeri-foundation+user%3Atrustoverip+user%3Ablockchainbird&type=Repositories&ref=advsearch&l=&l=`;
+
+            window.location.href = url;
+        });
+    </script>
+</body>
+
+</html>
