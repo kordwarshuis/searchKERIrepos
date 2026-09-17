@@ -12,6 +12,8 @@
             margin: 50px auto;
             padding: 20px;
             text-align: center;
+            background: #fff;
+            color: #1f2328;
         }
 
         input[type="text"] {
@@ -67,6 +69,32 @@
             margin: 0;
         }
 
+        .author-filter {
+            margin: 0 0 16px;
+        }
+
+        .author-filter label {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 6px;
+        }
+
+        .author-filter input {
+            width: 50%;
+        }
+
+        .author-filter input:disabled {
+            background: #f6f8fa;
+            color: #8c959f;
+            cursor: not-allowed;
+        }
+
+        .author-hint {
+            color: #656d76;
+            font-size: 13px;
+            margin: 6px 0 0;
+        }
+
         .tab-hint {
             color: #656d76;
             font-size: 14px;
@@ -100,6 +128,11 @@
             <label><input type="checkbox" name="searchType" value="discussions" checked> Discussions</label>
             <label><input type="checkbox" name="searchType" value="commits" checked> Commits</label>
         </div>
+        <div class="author-filter">
+            <label for="author">Author</label>
+            <input type="text" id="author" placeholder="Optional, e.g. kordwarshuis" autocomplete="username" spellcheck="false">
+            <p class="author-hint">Limits issues, pull requests, discussions, and commits to that GitHub user.</p>
+        </div>
         <p class="tab-hint">Each selected type opens in a new browser tab.</p>
     </form>
     <div id="openedSearches" hidden></div>
@@ -114,9 +147,11 @@
             discussions: 'Discussions',
             commits: 'Commits',
         };
+        const AUTHOR_TYPES = new Set(['issues', 'pullrequests', 'discussions', 'commits']);
 
         const selectAll = document.getElementById('selectAll');
         const typeBoxes = [...document.querySelectorAll('input[name="searchType"]')];
+        const authorInput = document.getElementById('author');
         const openedSearches = document.getElementById('openedSearches');
 
         function ownersQuery(type) {
@@ -129,9 +164,29 @@
             return OWNERS.map((owner) => `user:${owner}`).join(' ');
         }
 
-        function searchUrl(term, type) {
-            const query = `${term} ${ownersQuery(type)}`;
+        function normalizeAuthor(value) {
+            return value.trim().replace(/^@/, '');
+        }
+
+        function searchUrl(term, type, author) {
+            let query = `${term} ${ownersQuery(type)}`;
+            if (author && AUTHOR_TYPES.has(type)) {
+                query += ` author:${author}`;
+            }
             return `https://github.com/search?q=${encodeURIComponent(query)}&type=${type}`;
+        }
+
+        function searchLabel(type, author) {
+            const label = TYPE_LABELS[type];
+            if (author && AUTHOR_TYPES.has(type)) {
+                return `${label} by ${author}`;
+            }
+            return label;
+        }
+
+        function syncAuthorFilter() {
+            const enabled = typeBoxes.some((box) => box.checked && AUTHOR_TYPES.has(box.value));
+            authorInput.disabled = !enabled;
         }
 
         function syncSelectAll() {
@@ -145,11 +200,17 @@
                 box.checked = selectAll.checked;
             });
             selectAll.indeterminate = false;
+            syncAuthorFilter();
         });
 
         typeBoxes.forEach((box) => {
-            box.addEventListener('change', syncSelectAll);
+            box.addEventListener('change', function () {
+                syncSelectAll();
+                syncAuthorFilter();
+            });
         });
+
+        syncAuthorFilter();
 
         document.getElementById('searchForm').addEventListener('submit', function (e) {
             e.preventDefault();
@@ -159,9 +220,10 @@
             const types = typeBoxes.filter((box) => box.checked).map((box) => box.value);
             if (!types.length) return;
 
+            const author = normalizeAuthor(authorInput.value);
             const searches = types.map((type) => ({
-                label: TYPE_LABELS[type],
-                url: searchUrl(term, type),
+                label: searchLabel(type, author),
+                url: searchUrl(term, type, author),
             }));
 
             openedSearches.hidden = false;
