@@ -69,27 +69,59 @@
             margin: 0;
         }
 
-        .author-filter {
+        .author-filter,
+        .state-filter {
             margin: 0 0 16px;
         }
 
-        .author-filter label {
+        .author-filter > label,
+        .state-filter > label {
             display: block;
             font-size: 14px;
             margin-bottom: 6px;
         }
 
-        .author-filter input {
+        .author-filter input[type="text"] {
             width: 50%;
         }
 
-        .author-filter input:disabled {
+        .author-filter input:disabled,
+        .state-filter input:disabled {
             background: #f6f8fa;
             color: #8c959f;
             cursor: not-allowed;
         }
 
-        .author-hint {
+        .state-options {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .state-options label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border: 1px solid #d0d7de;
+            border-radius: 999px;
+            cursor: pointer;
+            font-size: 14px;
+            user-select: none;
+        }
+
+        .state-options label:has(input:checked) {
+            background: #ddf4ff;
+            border-color: #54aeff;
+        }
+
+        .state-options label:has(input:disabled) {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
+        .filter-hint {
             color: #656d76;
             font-size: 13px;
             margin: 6px 0 0;
@@ -131,7 +163,16 @@
         <div class="author-filter">
             <label for="author">Author</label>
             <input type="text" id="author" placeholder="Optional, e.g. kordwarshuis" autocomplete="username" spellcheck="false">
-            <p class="author-hint">Limits issues, pull requests, discussions, and commits to that GitHub user.</p>
+            <p class="filter-hint">Limits issues, pull requests, discussions, and commits to that GitHub user.</p>
+        </div>
+        <div class="state-filter">
+            <label id="issueStateLabel">Issue state</label>
+            <div class="state-options" role="radiogroup" aria-labelledby="issueStateLabel">
+                <label><input type="radio" name="issueState" value="" checked> All</label>
+                <label><input type="radio" name="issueState" value="open"> Open</label>
+                <label><input type="radio" name="issueState" value="closed"> Closed</label>
+            </div>
+            <p class="filter-hint">Limits issues and pull requests to open or closed.</p>
         </div>
         <p class="tab-hint">Each selected type opens in a new browser tab.</p>
     </form>
@@ -148,9 +189,12 @@
             commits: 'Commits',
         };
         const AUTHOR_TYPES = new Set(['issues', 'pullrequests', 'discussions', 'commits']);
+        const STATE_TYPES = new Set(['issues', 'pullrequests']);
+        const STATE_LABELS = { open: 'Open', closed: 'Closed' };
 
         const selectAll = document.getElementById('selectAll');
         const typeBoxes = [...document.querySelectorAll('input[name="searchType"]')];
+        const stateBoxes = [...document.querySelectorAll('input[name="issueState"]')];
         const authorInput = document.getElementById('author');
         const openedSearches = document.getElementById('openedSearches');
 
@@ -168,16 +212,27 @@
             return value.trim().replace(/^@/, '');
         }
 
-        function searchUrl(term, type, author) {
+        function selectedState() {
+            const checked = stateBoxes.find((box) => box.checked);
+            return checked ? checked.value : '';
+        }
+
+        function searchUrl(term, type, author, state) {
             let query = `${term} ${ownersQuery(type)}`;
             if (author && AUTHOR_TYPES.has(type)) {
                 query += ` author:${author}`;
             }
+            if (state && STATE_TYPES.has(type)) {
+                query += ` is:${state}`;
+            }
             return `https://github.com/search?q=${encodeURIComponent(query)}&type=${type}`;
         }
 
-        function searchLabel(type, author) {
-            const label = TYPE_LABELS[type];
+        function searchLabel(type, author, state) {
+            let label = TYPE_LABELS[type];
+            if (state && STATE_TYPES.has(type)) {
+                label = `${STATE_LABELS[state]} ${label.toLowerCase()}`;
+            }
             if (author && AUTHOR_TYPES.has(type)) {
                 return `${label} by ${author}`;
             }
@@ -187,6 +242,13 @@
         function syncAuthorFilter() {
             const enabled = typeBoxes.some((box) => box.checked && AUTHOR_TYPES.has(box.value));
             authorInput.disabled = !enabled;
+        }
+
+        function syncStateFilter() {
+            const enabled = typeBoxes.some((box) => box.checked && STATE_TYPES.has(box.value));
+            stateBoxes.forEach((box) => {
+                box.disabled = !enabled;
+            });
         }
 
         function syncSelectAll() {
@@ -201,16 +263,19 @@
             });
             selectAll.indeterminate = false;
             syncAuthorFilter();
+            syncStateFilter();
         });
 
         typeBoxes.forEach((box) => {
             box.addEventListener('change', function () {
                 syncSelectAll();
                 syncAuthorFilter();
+                syncStateFilter();
             });
         });
 
         syncAuthorFilter();
+        syncStateFilter();
 
         document.getElementById('searchForm').addEventListener('submit', function (e) {
             e.preventDefault();
@@ -221,9 +286,10 @@
             if (!types.length) return;
 
             const author = normalizeAuthor(authorInput.value);
+            const state = selectedState();
             const searches = types.map((type) => ({
-                label: searchLabel(type, author),
-                url: searchUrl(term, type, author),
+                label: searchLabel(type, author, state),
+                url: searchUrl(term, type, author, state),
             }));
 
             openedSearches.hidden = false;
